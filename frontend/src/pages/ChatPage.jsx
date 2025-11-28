@@ -7,35 +7,113 @@ export default function ChatPage() {
   const { partyId } = useParams();
   const navigate = useNavigate();
   const currentUserId = Number(localStorage.getItem('userId'));
+
   const [party, setParty] = useState(null);
   const [items, setItems] = useState([]);
   const [isMember, setIsMember] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // 모달 상태
   const [showModal, setShowModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
 
+  // 1. 데이터 불러오기 함수
   const fetchData = async () => {
     try {
       const partyRes = await api.get(`/parties/${partyId}`);
       if (partyRes.data.success) {
         setParty(partyRes.data.data);
-        setIsMember(partyRes.data.data.members.some(m => m.userId === currentUserId));
+        
+        // ★ 내가 멤버인지 확실하게 체크
+        const members = partyRes.data.data.members || [];
+        const amIMember = members.some(m => m.userId === currentUserId);
+        setIsMember(amIMember);
       }
+
       const itemsRes = await api.get(`/parties/${partyId}/items`);
-      if (itemsRes.data.success) setItems(itemsRes.data.data);
-    } catch (e) { console.error(e); }
+      if (itemsRes.data.success) {
+        setItems(itemsRes.data.data);
+      }
+    } catch (error) {
+      console.error("데이터 로딩 실패:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchData(); }, [partyId]);
+  // 초기 로딩
+  useEffect(() => {
+    fetchData();
+  }, [partyId]);
 
-  const handleJoin = async () => { await api.post(`/parties/${partyId}/join`, { userId: currentUserId }); fetchData(); };
-  const handleAddItem = async () => { 
-    await api.post(`/parties/${partyId}/items`, { userId: currentUserId, name: newItemName, price: parseInt(newItemPrice) });
-    setShowModal(false); setNewItemName(''); setNewItemPrice(''); fetchData(); 
+  // 2. 파티 참여 (버그 수정됨)
+  const handleJoin = async () => {
+    try {
+      setLoading(true); // 로딩 표시
+      // ★ await 로 확실하게 기다림
+      const res = await api.post(`/parties/${partyId}/join`, { userId: currentUserId });
+      
+      if (res.data.success) {
+        // 참여 성공 후 데이터 다시 불러오기
+        await fetchData(); 
+        alert("파티에 참여했습니다! 🎉");
+      }
+    } catch (error) {
+      // 이미 참여한 경우 등 에러 처리
+      if (error.response && error.response.data) {
+         // 이미 참여했다면 그냥 새로고침 효과
+         if(error.response.data.error === "ALREADY_JOINED") {
+             await fetchData();
+         } else {
+             alert("참여 실패: " + error.response.data.message);
+         }
+      }
+    } finally {
+      setLoading(false);
+    }
   };
-  const handleVote = async (itemId) => { await api.post(`/parties/${partyId}/items/${itemId}/vote`, { userId: currentUserId, agree: true }); fetchData(); };
 
-  if (!party) return <div className="min-h-screen bg-[#F2F4F6]"></div>;
+  // 3. 물건 추가
+  const handleAddItem = async () => {
+    if (!newItemName || !newItemPrice) return;
+    try {
+      await api.post(`/parties/${partyId}/items`, {
+        userId: currentUserId,
+        name: newItemName,
+        price: parseInt(newItemPrice)
+      });
+      setShowModal(false);
+      setNewItemName('');
+      setNewItemPrice('');
+      fetchData();
+    } catch (error) {
+      console.error("추가 실패:", error);
+    }
+  };
+
+  // 4. 투표
+  const handleVote = async (itemId) => {
+    try {
+      await api.post(`/parties/${partyId}/items/${itemId}/vote`, {
+        userId: currentUserId,
+        agree: true
+      });
+      fetchData();
+    } catch (error) {
+      console.error("투표 실패:", error);
+    }
+  };
+
+  if (loading) return <div className="min-h-screen bg-[#F2F4F6] flex items-center justify-center text-[#FF6F0F]">로딩중...</div>;
+  
+  // 파티 정보가 없으면 에러 화면
+  if (!party) return (
+      <div className="min-h-screen bg-[#F2F4F6] flex flex-col items-center justify-center p-6 text-center">
+          <p className="text-gray-500 mb-4">파티 정보를 찾을 수 없습니다.</p>
+          <button onClick={() => navigate('/')} className="text-[#FF6F0F] font-bold">홈으로 돌아가기</button>
+      </div>
+  );
 
   const confirmedItems = items.filter(i => i.confirmed);
   const votingItems = items.filter(i => !i.confirmed);
@@ -52,7 +130,7 @@ export default function ChatPage() {
           </div>
         </div>
         <div className="bg-orange-50 text-[#FF6F0F] text-xs font-bold px-3 py-1 rounded-full">
-          {party.members.length}명 참여중
+          {party.members ? party.members.length : 0}명 참여중
         </div>
       </header>
 
@@ -90,7 +168,7 @@ export default function ChatPage() {
           <>
             <div className="flex justify-center my-4">
               <span className="bg-gray-200 text-gray-600 text-[10px] px-3 py-1 rounded-full">
-                호스트가 포함되어야 출발할 수 있습니다 📢
+                📢 호스트 1명이 포함되어야 출발 가능합니다.
               </span>
             </div>
 
@@ -112,11 +190,17 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
+            
+            {votingItems.length === 0 && confirmedItems.length === 0 && (
+                <div className="text-center text-gray-400 text-sm mt-10">
+                  + 버튼을 눌러 살 물건을 제안해보세요!
+                </div>
+            )}
           </>
         )}
       </main>
 
-      {/* 하단 바 */}
+      {/* 하단 바 (멤버일 때만) */}
       {isMember && (
         <footer className="bg-white p-3 pb-safe border-t border-gray-100 flex items-center gap-3">
           <button onClick={() => setShowModal(true)} className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 active:scale-90 transition">
@@ -128,7 +212,7 @@ export default function ChatPage() {
         </footer>
       )}
 
-      {/* 모달 (간소화) */}
+      {/* 모달 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6 backdrop-blur-sm">
           <div className="bg-white w-full max-w-[320px] p-6 rounded-[24px] shadow-2xl animate-fade-in-up">
