@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { ChevronLeft, Plus, ThumbsUp, CheckCircle, Wallet } from 'lucide-react';
 
 export default function ChatPage() {
@@ -23,7 +23,7 @@ export default function ChatPage() {
   const fetchData = async () => {
     try {
       // 파티 정보 조회
-      const partyRes = await axios.get(`http://localhost:8080/api/v1/parties/${partyId}`);
+      const partyRes = await api.get(`/parties/${partyId}`);
       if (partyRes.data.success) {
         setParty(partyRes.data.data);
         
@@ -34,7 +34,7 @@ export default function ChatPage() {
       }
 
       // 아이템 리스트 조회
-      const itemsRes = await axios.get(`http://localhost:8080/api/v1/parties/${partyId}/items`);
+      const itemsRes =await api.get(`/parties/${partyId}/items`);
       if (itemsRes.data.success) {
         setItems(itemsRes.data.data);
       }
@@ -52,7 +52,7 @@ export default function ChatPage() {
   // 2. 파티 참여하기
   const handleJoin = async () => {
     try {
-      const res = await axios.post(`http://localhost:8080/api/v1/parties/${partyId}/join`, {
+      const res = await api.post(`/parties/${partyId}/join`, {
         userId: currentUserId
       });
       if (res.data.success) {
@@ -68,7 +68,7 @@ export default function ChatPage() {
   const handleAddItem = async () => {
     if (!newItemName || !newItemPrice) return;
     try {
-      await axios.post(`http://localhost:8080/api/v1/parties/${partyId}/items`, {
+      await api.post(`/parties/${partyId}/items`, {
         userId: currentUserId,
         name: newItemName,
         price: parseInt(newItemPrice)
@@ -85,7 +85,7 @@ export default function ChatPage() {
   // 4. 투표하기 (찬성)
   const handleVote = async (itemId) => {
     try {
-      await axios.post(`http://localhost:8080/api/v1/parties/${partyId}/items/${itemId}/vote`, {
+      await api.post(`/parties/${partyId}/items/${itemId}/vote`, {
         userId: currentUserId,
         agree: true
       });

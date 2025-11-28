@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { ShoppingBag } from 'lucide-react'; // 로고 아이콘
 
 export default function LoginPage() {
@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     try {
       // 1. 백엔드로 로그인 요청 (비번은 해커톤이라 무시됨)
-      const response = await axios.post('http://localhost:8080/api/v1/users/login', {
+      const response = await api.post('/users/login', {
         email: email,
         nickname: email.split('@')[0] // 이메일 앞부분을 닉네임으로 임시 사용
       });

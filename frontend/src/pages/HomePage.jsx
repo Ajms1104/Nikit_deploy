@@ -1,6 +1,6 @@
 // src/pages/HomePage.jsx
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { MapPin, ShoppingCart, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,7 +11,7 @@ export default function HomePage() {
 
   // 백엔드에서 파티 목록 가져오기
   useEffect(() => {
-    axios.get('http://localhost:8080/api/v1/parties')
+    api.get('/parties')
       .then((response) => {
         if(response.data.success) {
             setParties(response.data.data);

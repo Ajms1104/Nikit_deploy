@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { ChevronLeft, Calculator, Check, Copy, User } from 'lucide-react';
 
 export default function SettlementPage() {
@@ -21,7 +21,7 @@ export default function SettlementPage() {
   const fetchItems = async () => {
     try {
       // 구매 확정된 아이템만 불러옵니다 (confirmed=true 인 것만 필터링은 백엔드 혹은 여기서)
-      const res = await axios.get(`http://localhost:8080/api/v1/parties/${partyId}/items`);
+      const res = await api.get(`/parties/${partyId}/items`);
       if (res.data.success) {
         // 확정된(confirmed) 아이템만 추려서 초기 상태 설정
         const confirmedItems = res.data.data.filter(item => item.confirmed);
@@ -52,7 +52,7 @@ export default function SettlementPage() {
         }))
       };
 
-      const res = await axios.post(`http://localhost:8080/api/v1/parties/${partyId}/settlement`, payload);
+      const res = await api.post(`/parties/${partyId}/settlement`, payload);
       
       if (res.data.success) {
         setResult(res.data.data); // 결과 화면으로 전환

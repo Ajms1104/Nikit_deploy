@@ -1,7 +1,7 @@
 // src/pages/CreatePage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { ChevronLeft, Calendar, MapPin, Users } from 'lucide-react';
 
 // 백엔드 DB에 넣어둔 마트 이름과 똑같이 맞춰야 합니다!
@@ -47,7 +47,7 @@ export default function CreatePage() {
     const combinedDateTime = `${meetDate}T${meetTime}:00`;
 
     try {
-      const response = await axios.post('http://localhost:8080/api/v1/parties', {
+      const response =await api.post('/parties', {
         hostId: hostId,
         martName: martName,
         title: title,
