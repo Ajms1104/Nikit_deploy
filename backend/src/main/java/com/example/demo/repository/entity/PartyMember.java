@@ -36,4 +36,5 @@ public class PartyMember {
     // 상태 변경 편의 메서드
     public void completePayment() {
         this.paymentStatus = "COMPLETED";
+    }
 }
