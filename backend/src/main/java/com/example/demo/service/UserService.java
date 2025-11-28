@@ -24,6 +24,12 @@ public class UserService {
                 .isHost(false) // 기본은 게스트
                 .build()));
 
+        // ★ 위치 정보 업데이트 (로그인 할 때마다 갱신)
+        if (request.getLat() != null && request.getLng() != null) {
+            user.setLat(request.getLat());
+            user.setLng(request.getLng());
+        }
+
         // 2. Entity -> ResponseDto 변환
         return UserLoginResponse.builder()
             .userId(user.getId())

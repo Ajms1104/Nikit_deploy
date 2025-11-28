@@ -41,4 +41,12 @@ public class PartyController {
     }
 
     // (선택) 상태 변경 API는 필요하면 나중에 추가 (PartyService에 updateStatus 구현 필요)
+
+    // 5. 위치 기반 어쩌고
+    @GetMapping
+    public ApiResponse<List<PartyListResponse>> getPartyList(
+        @RequestParam(required = false) Double lat,
+        @RequestParam(required = false) Double lng) {
+        return ApiResponse.success(partyService.getPartyList(lat, lng));
+    }
 }

@@ -19,4 +19,5 @@ public class PartyListResponse {
     private LocalDateTime meetTime;
     private int currentMembers;  // 현재 인원
     private int maxMembers;      // 최대 인원
+    private double distance;
 }

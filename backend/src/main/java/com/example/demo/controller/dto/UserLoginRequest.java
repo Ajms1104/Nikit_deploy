@@ -12,4 +12,6 @@ import lombok.Setter;
 public class UserLoginRequest {
     private String email;
     private String nickname; // 닉네임이 오면 회원가입 시 사용, 없으면 기존 유저 로그인
+    private Double lat;
+    private Double lng;
 }

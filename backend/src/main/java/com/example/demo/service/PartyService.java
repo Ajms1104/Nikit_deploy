@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.controller.party.dto.*;
+import com.example.demo.global.util.DistanceCalculator; // 아까 만든 계산기
 import com.example.demo.repository.*;
 import com.example.demo.repository.entity.*;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -18,108 +20,60 @@ public class PartyService {
     private final PartyMemberRepository partyMemberRepository;
     private final UserRepository userRepository;
 
-    // 1. 파티 생성
-    @Transactional
-    public PartyIdResponse createParty(PartyCreateRequest request) {
-        User host = userRepository.findById(request.getHostId())
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+    // ▼ 추가된 의존성 (여기가 중요!)
+    private final StoreRepository storeRepository;
+    private final DistanceCalculator distanceCalculator;
 
-        // 파티 엔티티 생성
-        Party party = Party.builder()
-            .host(host)
-            .martName(request.getMartName())
-            .title(request.getTitle())
-            .meetTime(request.getMeetTime())
-            .meetPlace(request.getMeetPlace())
-            .maxMembers(request.getMaxMembers())
-            // 초기 상태는 RECRUITING (모집중) 이라고 가정 (Entity에 default 없으면 여기서 set)
-            // .status("RECRUITING")
-            .build();
-        partyRepository.save(party);
+    // ... createParty, joinParty 등 다른 메서드는 그대로 두세요 ...
 
-        // 방장을 멤버(HOST)로 추가
-        partyMemberRepository.save(PartyMember.builder()
-            .party(party)
-            .user(host)
-            .role("HOST")
-            .build());
-
-        return new PartyIdResponse(party.getId());
-    }
-
-    // 2. 파티 목록 조회
+    // [수정됨] 파티 목록 조회 (위치 기반 필터링)
     @Transactional(readOnly = true)
-    public List<PartyListResponse> getPartyList() {
-        return partyRepository.findAllByOrderByIdDesc().stream()
+    public List<PartyListResponse> getPartyList(Double myLat, Double myLng) {
+        List<Party> allParties = partyRepository.findAllByOrderByIdDesc();
+
+        // 1. 위치 정보가 안 넘어왔으면? -> 그냥 거리 0으로 해서 다 보여줌
+        if (myLat == null || myLng == null) {
+            return allParties.stream()
+                .map(party -> toListResponse(party, 0.0))
+                .collect(Collectors.toList());
+        }
+
+        // 2. 위치 정보가 있으면? -> 거리 계산 & 10km 이내 필터링
+        return allParties.stream()
             .map(party -> {
-                int currentMembers = partyMemberRepository.countByParty(party);
-                return PartyListResponse.builder()
-                    .partyId(party.getId())
-                    .title(party.getTitle())
-                    .martName(party.getMartName())
-                    .hostName(party.getHost().getNickname())
-                    // .status(party.getStatus()) // Entity 필드 추가 필요
-                    .meetTime(party.getMeetTime())
-                    .currentMembers(currentMembers)
-                    .maxMembers(party.getMaxMembers())
-                    .build();
+                // 파티의 martName으로 DB에서 Store 정보(좌표)를 찾음
+                Optional<Store> storeOpt = storeRepository.findByName(party.getMartName());
+
+                double distance = 0.0;
+                if (storeOpt.isPresent()) {
+                    Store store = storeOpt.get();
+                    // 내 위치 vs 매장 위치 거리 계산
+                    distance = distanceCalculator.calculateDistance(myLat, myLng, store.getLat(), store.getLng());
+                }
+
+                return toListResponse(party, distance);
             })
+            .filter(dto -> dto.getDistance() <= 10.0) // ★ 10km 이내만 통과! (거리를 늘리고 싶으면 여기 수정)
+            .sorted((p1, p2) -> Double.compare(p1.getDistance(), p2.getDistance())) // 가까운 순 정렬
             .collect(Collectors.toList());
     }
 
-    // 3. 파티 상세 조회
-    @Transactional(readOnly = true)
-    public PartyDetailResponse getPartyDetail(Long partyId) {
-        Party party = partyRepository.findById(partyId)
-            .orElseThrow(() -> new IllegalArgumentException("파티 없음"));
+    // DTO 변환 헬퍼 메서드 (중복 코드 제거용)
+    private PartyListResponse toListResponse(Party party, double distance) {
+        int currentMembers = partyMemberRepository.countByParty(party);
 
-        List<PartyMember> members = partyMemberRepository.findByParty(party);
+        // 거리 소수점 1자리까지만 (예: 2.5 km)
+        double roundedDistance = Math.round(distance * 10) / 10.0;
 
-        List<PartyDetailResponse.MemberDto> memberDtos = members.stream()
-            .map(pm -> PartyDetailResponse.MemberDto.builder()
-                .userId(pm.getUser().getId())
-                .nickname(pm.getUser().getNickname())
-                .role(pm.getRole())
-                .build())
-            .collect(Collectors.toList());
-
-        return PartyDetailResponse.builder()
+        return PartyListResponse.builder()
             .partyId(party.getId())
-            .martName(party.getMartName())
             .title(party.getTitle())
-            .meetPlace(party.getMeetPlace())
+            .martName(party.getMartName())
+            .hostName(party.getHost().getNickname())
             .meetTime(party.getMeetTime())
-            // .status(party.getStatus())
-            .members(memberDtos)
+            .currentMembers(currentMembers)
+            .maxMembers(party.getMaxMembers())
+            .distance(roundedDistance) // DTO에 distance 필드 추가 필요!
             .build();
-    }
-
-    // 4. 파티 참여
-    @Transactional
-    public PartyJoinResponse joinParty(Long partyId, PartyJoinRequest request) {
-        Party party = partyRepository.findById(partyId)
-            .orElseThrow(() -> new IllegalArgumentException("파티 없음"));
-        User user = userRepository.findById(request.getUserId())
-            .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
-
-        // 이미 참여했는지 확인
-        if (partyMemberRepository.findByPartyAndUser(party, user).isPresent()) {
-            return new PartyJoinResponse(false, "ALREADY_JOINED", "이미 참여한 파티입니다.");
-        }
-
-        // 인원 꽉 찼는지 확인
-        int currentCount = partyMemberRepository.countByParty(party);
-        if (currentCount >= party.getMaxMembers()) {
-            return new PartyJoinResponse(false, "FULL", "정원이 초과되었습니다.");
-        }
-
-        // 멤버 추가 (GUEST)
-        partyMemberRepository.save(PartyMember.builder()
-            .party(party)
-            .user(user)
-            .role("GUEST")
-            .build());
-
-        return new PartyJoinResponse(true, "GUEST", "파티 참여 완료");
     }
 }
