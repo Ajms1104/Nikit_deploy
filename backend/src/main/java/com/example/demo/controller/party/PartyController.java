@@ -21,10 +21,13 @@ public class PartyController {
         return ApiResponse.success(partyService.createParty(request));
     }
 
-    // 2. 파티 목록 조회
+    // 2. 파티 목록 조회 (위치 정보 파라미터 추가됨!)
     @GetMapping
-    public ApiResponse<List<PartyListResponse>> getPartyList() {
-        return ApiResponse.success(partyService.getPartyList());
+    public ApiResponse<List<PartyListResponse>> getPartyList(
+        @RequestParam(required = false) Double lat,
+        @RequestParam(required = false) Double lng) {
+        // 이제 좌표를 서비스로 넘깁니다.
+        return ApiResponse.success(partyService.getPartyList(lat, lng));
     }
 
     // 3. 파티 상세 조회
@@ -38,15 +41,5 @@ public class PartyController {
     public ApiResponse<PartyJoinResponse> joinParty(@PathVariable Long partyId,
         @RequestBody PartyJoinRequest request) {
         return ApiResponse.success(partyService.joinParty(partyId, request));
-    }
-
-    // (선택) 상태 변경 API는 필요하면 나중에 추가 (PartyService에 updateStatus 구현 필요)
-
-    // 5. 위치 기반 어쩌고
-    @GetMapping
-    public ApiResponse<List<PartyListResponse>> getPartyList(
-        @RequestParam(required = false) Double lat,
-        @RequestParam(required = false) Double lng) {
-        return ApiResponse.success(partyService.getPartyList(lat, lng));
     }
 }
