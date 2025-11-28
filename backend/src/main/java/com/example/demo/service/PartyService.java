@@ -78,7 +78,7 @@ public class PartyService {
 
                 return toListResponse(party, distance);
             })
-            .filter(dto -> dto.getDistance() <= 20.0) // 10km 이내
+            .filter(dto -> dto.getDistance() <= 40.0) // 10km 이내
             .sorted((p1, p2) -> Double.compare(p1.getDistance(), p2.getDistance())) // 거리순 정렬
             .collect(Collectors.toList());
     }
