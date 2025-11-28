@@ -125,7 +125,7 @@ export default function CreatePage() {
               value={selectedMart}
               onChange={(e) => setSelectedMart(e.target.value)}
             >
-              <option value="" disabled>눌어서 마트 선택하기 👇</option>
+              <option value="" disabled>눌러서 마트 선택하기 👇</option>
               {stores.map((store, idx) => (
                 <option key={idx} value={store.name} className="text-black">
                   {store.name} {store.distance > 0 ? `(${store.distance}km)` : ''}
