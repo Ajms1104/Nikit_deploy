@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { MapPin, ShoppingBag, Calendar, Users, Plus, List, Map as MapIcon, Home, User } from 'lucide-react';
+import { MapPin, ShoppingBag, Calendar, Users, Plus, List, Map as MapIcon, Home, User, ChevronDown } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -9,6 +9,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [myLocation, setMyLocation] = useState(null);
   const [locationName, setLocationName] = useState("위치 찾는 중...");
+  
+  // 뷰 모드 상태 (list / map)
   const [viewMode, setViewMode] = useState('list'); 
   const mapRef = useRef(null);
 
@@ -19,7 +21,7 @@ export default function HomePage() {
         (position) => {
           const { latitude, longitude } = position.coords;
           setMyLocation({ lat: latitude, lng: longitude });
-          setLocationName("부산 대연동"); 
+          setLocationName("내 주변 (10km)");
         },
         (error) => {
           console.error("위치 에러:", error);
@@ -52,37 +54,35 @@ export default function HomePage() {
     finally { setLoading(false); }
   };
 
-  // ★ 3. 지도 그리기 (안전장치 추가됨)
+  // ★ 3. 지도 그리기 (스크립트 강제 로드 방식)
   useEffect(() => {
-    if (viewMode !== 'map' || !mapRef.current) return;
+    // 리스트 모드면 실행 안 함
+    if (viewMode !== 'map') return;
 
-    // 카카오 스크립트 로딩 대기 함수
-    const loadKakaoMap = () => {
-      if (!window.kakao || !window.kakao.maps) {
-        setTimeout(loadKakaoMap, 100); // 0.1초마다 재시도
-        return;
-      }
+    // 지도를 그리는 함수
+    const initMap = () => {
+      // 카카오맵이 로드되었는지 확인
+      if (!window.kakao || !window.kakao.maps) return;
 
       window.kakao.maps.load(() => {
         const container = mapRef.current;
-        // 내 위치 없으면 기본값(부산)
+        if (!container) return;
+
+        // 내 위치가 없으면 기본값(부산)
         const centerLat = myLocation ? myLocation.lat : 35.1742;
         const centerLng = myLocation ? myLocation.lng : 129.1118;
   
         const options = { center: new window.kakao.maps.LatLng(centerLat, centerLng), level: 7 };
         const map = new window.kakao.maps.Map(container, options);
         
-        // 탭 전환 시 깨짐 방지
-        map.relayout();
-        map.setCenter(new window.kakao.maps.LatLng(centerLat, centerLng));
-  
-        // 내 위치 마커 (파란색)
+        // 내 위치 마커 (파란색 별 등 이미지 마커 권장, 여기선 기본 마커)
         if (myLocation) {
-          const imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png"; 
-          const imageSize = new window.kakao.maps.Size(24, 35); 
-          const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize); 
+           // 마커 이미지 설정 (파란색)
+           const imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png"; 
+           const imageSize = new window.kakao.maps.Size(24, 35); 
+           const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize); 
 
-          new window.kakao.maps.Marker({
+           new window.kakao.maps.Marker({
             position: new window.kakao.maps.LatLng(myLocation.lat, myLocation.lng),
             map: map,
             title: "내 위치",
@@ -90,9 +90,10 @@ export default function HomePage() {
           });
         }
   
-        // 파티 마커들
+        // 파티 장소 마커들
         parties.forEach(party => {
-          let lat = 35.1742, lng = 129.1118; 
+          // 좌표 하드코딩 매핑 (백엔드 데이터에 좌표가 없으므로 임시 처리)
+          let lat = 35.1742, lng = 129.1118; // 기본 코스트코 부산
           if(party.martName.includes("서면")) { lat=35.1645; lng=129.0505; }
           else if(party.martName.includes("명지")) { lat=35.0935; lng=128.9042; }
           else if(party.martName.includes("김해")) { lat=35.2268; lng=128.8475; }
@@ -102,11 +103,13 @@ export default function HomePage() {
             map: map, title: party.martName
           });
           
+          // 인포윈도우 (마커 위 설명)
           const infowindow = new window.kakao.maps.InfoWindow({
-              content: `<div style="padding:5px;font-size:12px;color:black;font-weight:bold;">${party.title}</div>`
+              content: `<div style="padding:5px;font-size:12px;color:black;width:150px;">${party.title}</div>`
           });
           infowindow.open(map, marker);
   
+          // 클릭 시 이동
           window.kakao.maps.event.addListener(marker, 'click', function() {
             navigate(`/room/${party.partyId}`);
           });
@@ -114,7 +117,19 @@ export default function HomePage() {
       });
     };
 
-    loadKakaoMap(); // 실행
+    // 스크립트가 이미 있으면 바로 실행, 없으면 추가
+    if (window.kakao && window.kakao.maps) {
+      initMap();
+    } else {
+      const script = document.createElement('script');
+      // ▼▼▼ [중요] 아래 YOUR_JAVASCRIPT_KEY_HERE 에 본인의 키를 넣으세요! ▼▼▼
+      script.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=fd67f98b24704bed0b0c32df7f4cb328&autoload=false"; 
+      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+      script.async = true;
+      script.onload = () => initMap();
+      document.head.appendChild(script);
+    }
+
   }, [viewMode, myLocation, parties]);
 
 
@@ -128,6 +143,7 @@ export default function HomePage() {
             <span className="text-xl font-extrabold text-[#333D4B] tracking-tight">NiKit</span>
         </div>
         
+        {/* 리스트/지도 토글 */}
         <div className="flex bg-[#F2F4F6] rounded-full p-1">
             <button 
               onClick={() => setViewMode('list')}
@@ -146,9 +162,12 @@ export default function HomePage() {
 
       {/* 2. 메인 컨텐츠 */}
       <main className="px-5 pt-6">
+        
+        {/* 위치 정보 바 */}
         <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-1 text-lg font-bold text-[#191F28]">
                 <span>📍 {locationName}</span>
+                <ChevronDown className="w-5 h-5 text-gray-400" />
             </div>
             <span className="text-xs font-medium text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-100">
                 10km 이내
@@ -178,13 +197,27 @@ export default function HomePage() {
                     </span>
                     <span className="text-xs text-gray-400 font-medium">{party.distance ? `${party.distance}km` : '2.5km'}</span>
                   </div>
+
                   <h3 className="text-[17px] font-bold text-[#333D4B] mb-1 leading-snug line-clamp-2">
                     {party.title}
                   </h3>
                   <p className="text-sm text-[#8B95A1] mb-4 flex items-center gap-1">
-                    <Calendar size={14} /> {new Date(party.meetTime).toLocaleDateString()}
+                    <Calendar size={14} /> {new Date(party.meetTime).toLocaleDateString()} {new Date(party.meetTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                   </p>
+
                   <div className="flex items-center justify-between border-t border-gray-50 pt-4">
+                    <div className="flex -space-x-2 overflow-hidden">
+                        {[...Array(Math.min(party.currentMembers, 3))].map((_, i) => (
+                            <div key={i} className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                {String.fromCharCode(65+i)}
+                            </div>
+                        ))}
+                        {party.currentMembers < party.maxMembers && (
+                            <div className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-[#FF6F0F] flex items-center justify-center text-[10px] font-bold text-white">
+                                +{party.maxMembers - party.currentMembers}
+                            </div>
+                        )}
+                    </div>
                     <div className="flex items-center text-[#FF6F0F] text-sm font-bold bg-orange-50 px-3 py-1 rounded-full">
                         <Users size={14} className="mr-1" />
                         {party.currentMembers}/{party.maxMembers}명
@@ -198,7 +231,9 @@ export default function HomePage() {
 
         {/* 지도 뷰 */}
         <div className={`${viewMode === 'map' ? 'block' : 'hidden'} w-full h-[70vh] rounded-[24px] overflow-hidden shadow-lg border border-gray-200 relative`}>
+            {/* ★ 지도 영역: ref 연결 */}
             <div ref={mapRef} className="w-full h-full bg-gray-100"></div>
+            
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-xs font-bold text-[#FF6F0F] shadow-lg z-10 whitespace-nowrap">
               마커를 클릭하면 파티로 이동합니다 🏃‍♂️
             </div>
@@ -211,12 +246,14 @@ export default function HomePage() {
             <Home size={24} fill="#FF6F0F" />
             <span className="text-[10px] font-bold">홈</span>
         </button>
+        
         <button 
             onClick={() => navigate('/create')}
             className="mb-8 w-14 h-14 bg-[#FF6F0F] rounded-full flex items-center justify-center text-white shadow-[0_8px_16px_rgba(255,111,15,0.3)] active:scale-95 transition-transform"
         >
             <Plus size={28} strokeWidth={3} />
         </button>
+
         <button onClick={() => alert("준비중입니다!")} className="flex flex-col items-center gap-1 w-16 text-gray-300">
             <User size={24} />
             <span className="text-[10px] font-medium">마이</span>
