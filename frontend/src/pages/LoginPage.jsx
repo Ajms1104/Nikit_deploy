@@ -77,7 +77,7 @@ export default function LoginPage() {
       </form>
 
       <div className="mt-8 text-sm text-[#8B95A1]">
-        아직 계정이 없으신가요? <span className="text-[#FF6F0F] font-bold cursor-pointer hover:underline">회원가입</span>
+        MVP 버전이라 바로 이메일과 비밀번호 입력시  <span className="text-[#FF6F0F] font-bold cursor-pointer hover:underline">로그인</span>
       </div>
     </div>
   );
