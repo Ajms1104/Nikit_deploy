@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { MapPin, ShoppingBag, Calendar, Users, Plus, List, Map as MapIcon, Home, MessageCircle, User } from 'lucide-react';
+import { MapPin, ShoppingBag, Calendar, Users, Plus, List, Map as MapIcon, Home, User } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function HomePage() {
         (position) => {
           const { latitude, longitude } = position.coords;
           setMyLocation({ lat: latitude, lng: longitude });
-          setLocationName("부산 대연동"); // (해커톤용 고정 텍스트로 예쁘게)
+          setLocationName("부산 대연동"); 
         },
         (error) => {
           console.error("위치 에러:", error);
@@ -52,23 +52,45 @@ export default function HomePage() {
     finally { setLoading(false); }
   };
 
-  // 지도 그리기 (useEffect) - 기존 코드 유지 (생략하지 말고 그대로 두세요!)
+  // ★ 3. 지도 그리기 (안전장치 추가됨)
   useEffect(() => {
-    if (viewMode === 'map' && window.kakao && window.kakao.maps) {
+    if (viewMode !== 'map' || !mapRef.current) return;
+
+    // 카카오 스크립트 로딩 대기 함수
+    const loadKakaoMap = () => {
+      if (!window.kakao || !window.kakao.maps) {
+        setTimeout(loadKakaoMap, 100); // 0.1초마다 재시도
+        return;
+      }
+
+      window.kakao.maps.load(() => {
         const container = mapRef.current;
+        // 내 위치 없으면 기본값(부산)
         const centerLat = myLocation ? myLocation.lat : 35.1742;
         const centerLng = myLocation ? myLocation.lng : 129.1118;
   
         const options = { center: new window.kakao.maps.LatLng(centerLat, centerLng), level: 7 };
         const map = new window.kakao.maps.Map(container, options);
+        
+        // 탭 전환 시 깨짐 방지
+        map.relayout();
+        map.setCenter(new window.kakao.maps.LatLng(centerLat, centerLng));
   
+        // 내 위치 마커 (파란색)
         if (myLocation) {
+          const imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png"; 
+          const imageSize = new window.kakao.maps.Size(24, 35); 
+          const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize); 
+
           new window.kakao.maps.Marker({
             position: new window.kakao.maps.LatLng(myLocation.lat, myLocation.lng),
-            map: map, title: "나"
+            map: map,
+            title: "내 위치",
+            image: markerImage
           });
         }
   
+        // 파티 마커들
         parties.forEach(party => {
           let lat = 35.1742, lng = 129.1118; 
           if(party.martName.includes("서면")) { lat=35.1645; lng=129.0505; }
@@ -89,21 +111,23 @@ export default function HomePage() {
             navigate(`/room/${party.partyId}`);
           });
         });
-      }
+      });
+    };
+
+    loadKakaoMap(); // 실행
   }, [viewMode, myLocation, parties]);
 
 
   return (
     <div className="min-h-screen bg-[#F2F4F6] text-[#333D4B] font-sans pb-24 page-transition relative">
       
-      {/* 1. 상단 헤더 (토스 스타일) */}
+      {/* 1. 상단 헤더 */}
       <header className="bg-white sticky top-0 z-20 px-5 h-16 flex items-center justify-between shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2" onClick={() => window.location.reload()}>
             <ShoppingBag className="text-[#FF6F0F] w-6 h-6" fill="#FF6F0F" />
             <span className="text-xl font-extrabold text-[#333D4B] tracking-tight">NiKit</span>
         </div>
         
-        {/* 리스트/지도 토글 */}
         <div className="flex bg-[#F2F4F6] rounded-full p-1">
             <button 
               onClick={() => setViewMode('list')}
@@ -122,14 +146,10 @@ export default function HomePage() {
 
       {/* 2. 메인 컨텐츠 */}
       <main className="px-5 pt-6">
-        
-        {/* 위치 정보 바 */}
         <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-1 text-lg font-bold text-[#191F28]">
                 <span>📍 {locationName}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
             </div>
-            {/* 필터 (간소화) */}
             <span className="text-xs font-medium text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-100">
                 10km 이내
             </span>
@@ -152,37 +172,19 @@ export default function HomePage() {
                   onClick={() => navigate(`/room/${party.partyId}`)}
                   className="bg-white p-5 rounded-[24px] shadow-[0_2px_12px_rgba(0,0,0,0.04)] active:scale-[0.98] transition-transform cursor-pointer border border-transparent hover:border-orange-100"
                 >
-                  {/* 카드 상단 */}
                   <div className="flex justify-between items-start mb-3">
                     <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${party.martName.includes('코스트코') ? 'bg-red-50 text-[#E53935]' : 'bg-green-50 text-[#43A047]'}`}>
                       {party.martName}
                     </span>
                     <span className="text-xs text-gray-400 font-medium">{party.distance ? `${party.distance}km` : '2.5km'}</span>
                   </div>
-
-                  {/* 제목 */}
                   <h3 className="text-[17px] font-bold text-[#333D4B] mb-1 leading-snug line-clamp-2">
                     {party.title}
                   </h3>
                   <p className="text-sm text-[#8B95A1] mb-4 flex items-center gap-1">
-                    <Calendar size={14} /> {new Date(party.meetTime).toLocaleDateString()} {new Date(party.meetTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    <Calendar size={14} /> {new Date(party.meetTime).toLocaleDateString()}
                   </p>
-
-                  {/* 카드 하단 (인원 & 태그) */}
                   <div className="flex items-center justify-between border-t border-gray-50 pt-4">
-                    <div className="flex -space-x-2 overflow-hidden">
-                        {/* 참여자 아바타 (가짜 UI) */}
-                        {[...Array(Math.min(party.currentMembers, 3))].map((_, i) => (
-                            <div key={i} className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                {String.fromCharCode(65+i)}
-                            </div>
-                        ))}
-                        {party.currentMembers < party.maxMembers && (
-                            <div className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-[#FF6F0F] flex items-center justify-center text-[10px] font-bold text-white">
-                                +{party.maxMembers - party.currentMembers}
-                            </div>
-                        )}
-                    </div>
                     <div className="flex items-center text-[#FF6F0F] text-sm font-bold bg-orange-50 px-3 py-1 rounded-full">
                         <Users size={14} className="mr-1" />
                         {party.currentMembers}/{party.maxMembers}명
@@ -203,21 +205,18 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* 3. 하단 내비게이션 바 (Bottom Navigation) - 앱 느낌의 핵심! */}
+      {/* 3. 하단 내비게이션 바 */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 h-[80px] pb-4 flex justify-around items-center z-30 max-w-[430px] mx-auto">
         <button onClick={() => navigate('/')} className="flex flex-col items-center gap-1 w-16 text-[#FF6F0F]">
             <Home size={24} fill="#FF6F0F" />
             <span className="text-[10px] font-bold">홈</span>
         </button>
-        
-        {/* 중앙 플로팅 버튼 (파티 만들기) */}
         <button 
             onClick={() => navigate('/create')}
             className="mb-8 w-14 h-14 bg-[#FF6F0F] rounded-full flex items-center justify-center text-white shadow-[0_8px_16px_rgba(255,111,15,0.3)] active:scale-95 transition-transform"
         >
             <Plus size={28} strokeWidth={3} />
         </button>
-
         <button onClick={() => alert("준비중입니다!")} className="flex flex-col items-center gap-1 w-16 text-gray-300">
             <User size={24} />
             <span className="text-[10px] font-medium">마이</span>
