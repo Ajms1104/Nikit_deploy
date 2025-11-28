@@ -48,7 +48,7 @@ export default function LoginPage() {
         <div className="space-y-2">
           <input
             type="email"
-            placeholder="학교 이메일 입력"
+            placeholder="이메일 입력"
             className="w-full p-4 bg-white border-0 ring-1 ring-gray-200 rounded-[16px] text-lg focus:outline-none focus:ring-2 focus:ring-[#FF6F0F] transition-all placeholder:text-gray-300"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
