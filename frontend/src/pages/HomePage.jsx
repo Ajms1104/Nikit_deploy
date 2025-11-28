@@ -124,7 +124,7 @@ export default function HomePage() {
       const script = document.createElement('script');
       // ▼▼▼ [중요] 아래 YOUR_JAVASCRIPT_KEY_HERE 에 본인의 키를 넣으세요! ▼▼▼
       script.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=fd67f98b24704bed0b0c32df7f4cb328&autoload=false"; 
-      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+   
       script.async = true;
       script.onload = () => initMap();
       document.head.appendChild(script);
