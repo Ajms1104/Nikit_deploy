@@ -1,4 +1,4 @@
-package com.example.demo.controller.party.dto;
+package com.example.demo.controller.party;
 
 import com.example.demo.controller.party.dto.*;
 import com.example.demo.global.common.ApiResponse;
