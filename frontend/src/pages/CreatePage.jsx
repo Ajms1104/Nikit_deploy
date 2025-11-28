@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ChevronLeft, Calendar, Clock, MapPin, Tag, X, Store, Check } from 'lucide-react';
+import { ChevronLeft, Calendar, MapPin, Users, ShoppingBag, Clock, Tag, X, Store } from 'lucide-react';
 
 export default function CreatePage() {
   const navigate = useNavigate();
-  const [stores, setStores] = useState([]);
+  
+  // 상태 관리
+  // ★ 수정: 초기값을 빈 배열이 아니라 기본 마트 리스트로 채워둠 (안전장치)
+  const [stores, setStores] = useState([
+    { name: "코스트코 부산점", distance: 0 },
+    { name: "이마트 트레이더스 서면점", distance: 0 },
+    { name: "코스트코 김해점", distance: 0 },
+    { name: "이마트 트레이더스 명지점", distance: 0 }
+  ]); 
+  
   const [selectedMart, setSelectedMart] = useState('');
+  const [title, setTitle] = useState('');
   const [meetDate, setMeetDate] = useState('');
   const [meetTime, setMeetTime] = useState('');
   const [meetPlace, setMeetPlace] = useState('');
@@ -15,16 +25,18 @@ export default function CreatePage() {
   const [maxMembers, setMaxMembers] = useState(4);
   const [loading, setLoading] = useState(false);
 
+  // 1. 내 위치 가져오기 & 주변 마트 조회
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           fetchNearbyStores(position.coords.latitude, position.coords.longitude);
         },
-        () => fetchNearbyStores(null, null)
+        (err) => {
+          console.error("위치 권한 없음:", err);
+          // 위치 없어도 기본 리스트는 유지됨
+        }
       );
-    } else {
-      fetchNearbyStores(null, null);
     }
   }, []);
 
@@ -32,13 +44,14 @@ export default function CreatePage() {
     try {
       let url = '/stores/nearby';
       if (lat && lng) url += `?lat=${lat}&lng=${lng}`;
+      
       const res = await api.get(url);
       if (res.data.success && res.data.data.length > 0) {
         setStores(res.data.data);
-        setSelectedMart(res.data.data[0].name);
+        // ★ 수정: 자동으로 첫 번째 마트 선택하지 않음 (사용자가 직접 고르게)
       }
     } catch (error) {
-      setStores([{ name: "코스트코 부산점" }, { name: "이마트 트레이더스 서면점" }]);
+      console.error("매장 로딩 실패 (기본 리스트 사용):", error);
     }
   };
 
@@ -55,18 +68,24 @@ export default function CreatePage() {
   };
 
   const handleSubmit = async () => {
-    const title = tags.length > 0 ? tags.join(', ') + " 같이 사요!" : "함께 장보실 분 구해요!";
+    if (!selectedMart) {
+        alert("마트를 선택해주세요!");
+        return;
+    }
+    const finalTitle = tags.length > 0 ? tags.join(', ') + " 같이 사요!" : title || "함께 장보실 분!";
+    
     if (!meetDate || !meetTime || !meetPlace) {
       alert("정보를 모두 입력해주세요!");
       return;
     }
+
     setLoading(true);
     const hostId = localStorage.getItem('userId');
     try {
       const response = await api.post('/parties', {
         hostId: hostId,
         martName: selectedMart,
-        title: title,
+        title: finalTitle,
         meetTime: `${meetDate}T${meetTime}:00`,
         meetPlace: meetPlace,
         maxMembers: parseInt(maxMembers)
@@ -99,18 +118,28 @@ export default function CreatePage() {
             <h2 className="font-bold text-lg">어디로 갈까요?</h2>
           </div>
           <div className="relative">
+            {/* ★ 수정된 Select 박스 */}
             <select 
-              className="w-full p-4 bg-[#F9FAFB] border-0 rounded-xl font-bold text-[#333D4B] appearance-none focus:ring-2 focus:ring-[#FF6F0F]"
+              className="w-full p-4 pl-12 bg-white border border-gray-200 rounded-2xl text-base font-bold text-gray-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#FF6F0F] focus:border-transparent"
+              style={{ backgroundImage: 'none' }} // 브라우저 기본 화살표 제거 강제
               value={selectedMart}
               onChange={(e) => setSelectedMart(e.target.value)}
             >
-              {stores.map((store) => (
-                <option key={store.name} value={store.name}>
-                  {store.name} {store.distance ? `(${store.distance}km)` : ''}
+              <option value="" disabled>눌어서 마트 선택하기 👇</option>
+              {stores.map((store, idx) => (
+                <option key={idx} value={store.name} className="text-black">
+                  {store.name} {store.distance > 0 ? `(${store.distance}km)` : ''}
                 </option>
               ))}
             </select>
-            <Store className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+            
+            {/* 아이콘들 */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <Store className="text-gray-400 w-6 h-6" />
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+              <ChevronLeft className="text-gray-400 w-5 h-5 -rotate-90" />
+            </div>
           </div>
         </section>
 
@@ -153,7 +182,7 @@ export default function CreatePage() {
               ))}
             </div>
             <div className="relative">
-              <input type="text" placeholder="품목 입력 후 엔터" className="w-full p-3 pl-10 bg-[#F9FAFB] border-0 rounded-xl text-sm focus:ring-2 focus:ring-[#FF6F0F]" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown} />
+              <input type="text" placeholder="품목 입력 후 엔터 (제목이 됩니다)" className="w-full p-3 pl-10 bg-[#F9FAFB] border-0 rounded-xl text-sm focus:ring-2 focus:ring-[#FF6F0F]" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown} />
               <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             </div>
           </div>
