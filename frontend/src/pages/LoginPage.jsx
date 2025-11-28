@@ -1,75 +1,63 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ShoppingBag } from 'lucide-react'; // 로고 아이콘
+import { ShoppingBag, ChevronRight } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  
-  // 입력값 상태 관리
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // (해커톤용 가짜 비번)
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      // 1. 백엔드로 로그인 요청 (비번은 해커톤이라 무시됨)
       const response = await api.post('/users/login', {
         email: email,
-        nickname: email.split('@')[0] // 이메일 앞부분을 닉네임으로 임시 사용
+        nickname: email.split('@')[0]
       });
 
       if (response.data.success) {
         const userData = response.data.data;
-        
-        // ★ 핵심: 로그인 성공 시 userId를 브라우저에 저장!
-        // 나중에 파티 만들 때 이 ID를 꺼내 쓸 겁니다.
         localStorage.setItem('userId', userData.userId);
         localStorage.setItem('nickname', userData.nickname);
-        localStorage.setItem('isHost', userData.host); // boolean -> string 저장됨
-
-        alert(`반갑습니다, ${userData.nickname}님!`);
-        navigate('/'); // 메인 화면으로 이동
+        localStorage.setItem('isHost', userData.host);
+        navigate('/');
       }
     } catch (error) {
-      console.error('로그인 실패:', error);
-      alert('로그인에 실패했습니다. 백엔드가 켜져있는지 확인해주세요!');
+      alert('로그인 실패! 백엔드 연결을 확인해주세요.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-white">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#F2F4F6] p-6 pb-20">
       {/* 로고 영역 */}
-      <div className="mb-10 text-center">
-        <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ShoppingBag size={40} className="text-orange-500" />
+      <div className="flex flex-col items-center mb-12 animate-fade-in-up">
+        <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.04)] mb-6">
+          <ShoppingBag size={48} className="text-[#FF6F0F]" />
         </div>
-        <h1 className="text-3xl font-bold text-orange-500 mb-2">NiKit</h1>
-        <p className="text-gray-500">나누면 가벼워지는 쇼핑</p>
+        <h1 className="text-3xl font-extrabold text-[#333D4B] mb-2 tracking-tight">NiKit</h1>
+        <p className="text-[#6B7684] text-lg font-medium">나누면 가벼워지는 쇼핑</p>
       </div>
 
       {/* 로그인 폼 */}
-      <form onSubmit={handleLogin} className="w-full max-w-sm space-y-4">
-        <div>
+      <form onSubmit={handleLogin} className="w-full max-w-[350px] space-y-4">
+        <div className="space-y-2">
           <input
             type="email"
-            placeholder="이메일"
-            className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 transition"
+            placeholder="학교 이메일 입력"
+            className="w-full p-4 bg-white border-0 ring-1 ring-gray-200 rounded-[16px] text-lg focus:outline-none focus:ring-2 focus:ring-[#FF6F0F] transition-all placeholder:text-gray-300"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </div>
-        <div>
           <input
             type="password"
             placeholder="비밀번호"
-            className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 transition"
+            className="w-full p-4 bg-white border-0 ring-1 ring-gray-200 rounded-[16px] text-lg focus:outline-none focus:ring-2 focus:ring-[#FF6F0F] transition-all placeholder:text-gray-300"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -78,16 +66,19 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-orange-500 text-white font-bold py-4 rounded-xl hover:bg-orange-600 transition disabled:bg-gray-300"
+          className="w-full bg-[#FF6F0F] text-white font-bold text-lg py-4 rounded-[16px] hover:bg-orange-600 transition-all active:scale-95 shadow-lg shadow-orange-500/20 disabled:bg-gray-300 flex items-center justify-center gap-2"
         >
-          {loading ? '로그인 중...' : '시작하기'}
+          {loading ? '로그인 중...' : (
+            <>
+              시작하기 <ChevronRight size={20} />
+            </>
+          )}
         </button>
       </form>
 
-        {/* 하단 링크 */}
-      {/*<div className="mt-6 text-sm text-gray-400">
-        아직 계정이 없으신가요? <span className="text-orange-500 underline cursor-pointer">회원가입</span>
-      </div>*/}
+      <div className="mt-8 text-sm text-[#8B95A1]">
+        아직 계정이 없으신가요? <span className="text-[#FF6F0F] font-bold cursor-pointer hover:underline">회원가입</span>
+      </div>
     </div>
   );
 }
