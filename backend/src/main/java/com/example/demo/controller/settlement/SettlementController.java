@@ -4,6 +4,7 @@ import com.example.demo.controller.settlement.dto.SettlementRequest;
 import com.example.demo.controller.settlement.dto.SettlementResponse;
 import com.example.demo.global.common.ApiResponse;
 import com.example.demo.service.SettlementService;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,5 +23,13 @@ public class SettlementController {
     public ApiResponse<List<SettlementResponse>> calculate(@PathVariable Long partyId,
         @RequestBody SettlementRequest request) {
         return ApiResponse.success(settlementService.calculate(partyId, request));
+    }
+    // 송금 완료 버튼 클릭 시 호출
+    @PostMapping("/complete")
+    public ApiResponse<String> completePayment(@PathVariable Long partyId,
+        @RequestBody Map<String, Long> body) {
+        Long userId = body.get("userId"); // 프론트에서 { "userId": 2 } 이렇게 보냄
+        settlementService.completePayment(partyId, userId);
+        return ApiResponse.success("송금 확인 처리되었습니다.");
     }
 }

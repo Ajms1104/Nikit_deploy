@@ -28,4 +28,12 @@ public class PartyMember {
 
     // 역할이 무엇인지 ("HOST" 또는 "GUEST")
     private String role;
+
+    // 결제 상태 (PENDING: 대기중, COMPLETED: 완료)
+    @Builder.Default
+    private String paymentStatus = "PENDING";
+
+    // 상태 변경 편의 메서드
+    public void completePayment() {
+        this.paymentStatus = "COMPLETED";
 }
